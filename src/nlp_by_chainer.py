@@ -22,11 +22,14 @@ all_words = data.split()
 words_set = np.unique(all_words)[727:]
 
 
-def one_hot_expresssion(word):
-    n_class = 26
+def one_hot_expression(word):
+    
     fig_word = [ord(char) - 97 for char in word]
+    
+    return np.array(fig_word)
+    #n_class = 26
+    #return np.identity(n_class)[fig_word]
 
-    return np.identity(n_class)[fig_word]
 
 def softmax(array):
     return np.exp(array)/np.sum(np.exp(array))
@@ -35,7 +38,8 @@ def softmax(array):
 class LSTM(Chain):
     def __init__(self, in_size, hidden_size, out_size):
         super(LSTM, self).__init__(
-            xh = L.Linear(in_size, hidden_size),
+            xh = L.EmbedID(in_size, hidden_size),
+            #xh = L.Linear(in_size, hidden_size),
             hh = L.LSTM(hidden_size, hidden_size),
             hy = L.Linear(hidden_size, out_size)
         )
@@ -46,42 +50,102 @@ class LSTM(Chain):
             t = Variable(t)
         h = self.xh(x)
         h = self.hh(h)
-        y = self.hy(h)
+        y = F.softmax(self.hy(h))
+        #y = F.max(y)
         if train:
-            return F.mean_squared_error(y, t)
+            return F.softmax_cross_entropy(y, t)
         else:
             return y.data
  
     def reset(self):
-        # 勾配の初期化とメモリの初期化
-        self.zerograds()
+        self.cleargrads()
         self.hh.reset_state()
+        
 
 model = LSTM(in_size=26, hidden_size=100, out_size=26)
+
 optimizer = optimizers.Adam()
 optimizer.setup(model)
 
-trainX = one_hot_expresssion('working').astype(np.float32)
+trainX = one_hot_expression('worker').astype(np.int32)
+trainY = one_hot_expression('working').astype(np.int32)
+trainZ = one_hot_expression('workshop').astype(np.int32)
+trainX2 = one_hot_expression('works').astype(np.int32)
+trainY2 = one_hot_expression('worked').astype(np.int32)
+trainZ2 = one_hot_expression('work').astype(np.int32)
 
 
-for i in range(2000):
+for i in range(1000):
     model.reset()
     loss = 0
     for i in range(trainX.shape[0] - 1):    
-        x = trainX[i].reshape(1,26)
-        t = trainX[i+1].reshape(1,26)
+        x = np.array([trainX[i]])
+        t = np.array([trainX[i+1]])
         loss += model(x=x, t=t, train=True)
          
     loss.backward()
-    loss.unchain_backward()
+    #loss.unchain_backward()
     optimizer.update()
     
-model.reset()
+    
+    model.reset()
+    loss = 0
+    for i in range(trainY.shape[0] - 1):    
+        x = np.array([trainY[i]])
+        t = np.array([trainY[i+1]])
+        loss += model(x=x, t=t, train=True)
+         
+    loss.backward()
+    #loss.unchain_backward()
+    optimizer.update()
+    
+    model.reset()
+    loss = 0
+    for i in range(trainZ.shape[0] - 1):    
+        x = np.array([trainZ[i]])
+        t = np.array([trainZ[i+1]])
+        loss += model(x=x, t=t, train=True)
+         
+    loss.backward()
+    #loss.unchain_backward()
+    optimizer.update()
+    
+    model.reset()
+    loss = 0
+    for i in range(trainX2.shape[0] - 1):    
+        x = np.array([trainX2[i]])
+        t = np.array([trainX2[i+1]])
+        loss += model(x=x, t=t, train=True)
+         
+    loss.backward()
+    #loss.unchain_backward()
+    optimizer.update()
+    
+    
+    model.reset()
+    loss = 0
+    for i in range(trainY2.shape[0] - 1):    
+        x = np.array([trainY2[i]])
+        t = np.array([trainY2[i+1]])
+        loss += model(x=x, t=t, train=True)
+         
+    loss.backward()
+    #loss.unchain_backward()
+    optimizer.update()
+
+
+
 print('w :', 1.)
-for X in trainX[:-1]:
-    y = model(X.reshape(1,26),train=False)
-    prob = np.max(softmax(y))
+
+char = np.array([trainX[0]])
+model.reset()
+for i in range(5):
+    y = model(char,train=False)
+    prob = np.max(y)
+    char = np.array([np.argmax(y)],dtype=np.int)
     y = chr(np.argmax(y) + 97)
     
-    print(y +' :',prob)
-
+    print(y +' :',prob)    
+    
+    
+    

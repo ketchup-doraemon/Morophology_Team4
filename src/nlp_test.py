@@ -10,7 +10,7 @@ import numpy as np
 from gensim.models.keyedvectors import KeyedVectors 
 from gensim.scripts.glove2word2vec import glove2word2vec
 
-glove2word2vec("trainer\glove.6B.200d.txt","trainer\glove.6B.200d.bin")
+#glove2word2vec("trainer\glove.6B.200d.txt","trainer\glove.6B.200d.bin")
 word_vectors = KeyedVectors.load_word2vec_format("trainer\glove.6B.200d.bin")
 
 
@@ -43,16 +43,16 @@ def make_pairs(words, max_len =6):
                         
     return patterns
 
-def molph_classify(pairs,threshold=0.5,min_category=5):
+def molph_classify(thepairs,model,threshold=0.5,min_category=5):
     new_pairs = defaultdict(list)
 
-    for key in pairs:
-        cadidates = pairs[key]
+    for key in thepairs:
+        cadidates = thepairs[key]
         
         similality = []
         for pair in cadidates:
             try:
-                cos_sim = word_vectors.similarity(pair[0],pair[1])
+                cos_sim = model(pair[0],pair[1])
             except:
                 pass
             else: 
@@ -72,7 +72,21 @@ def make_same_group(pairs,word):
             group.append(pair)
             
     return group
+
+def plot_graph(pair_group):
+    G = nx.Graph()
+    for pair in pair_group:  
+        G.add_nodes_from([pair[0],pair[1]])
+        G.add_edge(pair[0],pair[1])
     
+    plt.figure(figsize=(7,7))
+    pos = nx.spring_layout(G,k=0.7)
+    nx.draw_networkx_nodes(G, pos, node_color="0.9", node_size=5000.0)
+    nx.draw_networkx_edges(G, pos, edge_color="0.1", width=2.5)
+    nx.draw_networkx_labels(G, pos, fontsize=25, font_weight="bold")
+    plt.axis('on')
+    plt.show()
+       
 
 
 if __name__ == '__main__':
@@ -92,21 +106,7 @@ if __name__ == '__main__':
     original_pair = make_pairs(words_set, max_len =6)
     pairs = molph_classify(original_pair,model)
     group = make_same_group(pairs,'work')
+    plot_graph(group)
 
-
-    G = nx.Graph()
-    for pair in group:  
-        G.add_nodes_from([pair[0],pair[1]])
-        G.add_edge(pair[0],pair[1])
-    
-    
-    plt.figure(figsize=(7,7))
-    pos = nx.spring_layout(G,k=0.7)
-    nx.draw_networkx_nodes(G, pos, node_color="0.9", node_size=5000.0)
-    nx.draw_networkx_edges(G, pos, edge_color="0.1", width=2.5)
-    nx.draw_networkx_labels(G, pos, fontsize=25, font_weight="bold")
-    plt.axis('on')
-    plt.show()
-    
     
     
