@@ -7,11 +7,11 @@ Created on Mon Dec 10 15:27:55 2018
 
 from collections import defaultdict
 import numpy as np
-from gensim.models.keyedvectors import KeyedVectors 
+from gensim.models.keyedvectors import KeyedVectors
 from gensim.scripts.glove2word2vec import glove2word2vec
 
 #glove2word2vec("trainer\glove.6B.200d.txt","trainer\glove.6B.200d.bin")
-word_vectors = KeyedVectors.load_word2vec_format("trainer\glove.6B.200d.bin")
+word_vectors = KeyedVectors.load_word2vec_format(r"trainer/glove.6B.300d.bin")
 
 
 from matplotlib import pyplot as plt
@@ -75,14 +75,14 @@ def make_same_group(pairs,word):
 
 def plot_graph(pair_group):
     G = nx.Graph()
-    for pair in pair_group:  
+    for pair in pair_group:
         G.add_nodes_from([pair[0],pair[1]])
         G.add_edge(pair[0],pair[1])
     
     plt.figure(figsize=(7,7))
     pos = nx.spring_layout(G,k=0.7)
-    nx.draw_networkx_nodes(G, pos, node_color="0.9", node_size=5000.0)
-    nx.draw_networkx_edges(G, pos, edge_color="0.1", width=2.5)
+    nx.draw_networkx_nodes(G, pos, node_color='lightgray', node_size=5000.0)
+    nx.draw_networkx_edges(G, pos, width=2.5)
     nx.draw_networkx_labels(G, pos, fontsize=25, font_weight="bold")
     plt.axis('on')
     plt.show()
