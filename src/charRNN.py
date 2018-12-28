@@ -93,8 +93,9 @@ if __name__ == '__main__':
         ans = np.fliplr(mini_batch)[:,1:]
         for correct in ans.T:
             loss += F.softmax_cross_entropy(vec,correct)
-            vec = F.argmax(vec)
-            vec = net.forward(np.array([np.int32(vec.data)]))
+            vec = F.argmax(vec,axis=1)
+
+            vec = net.forward(np.array([np.int32(vec.data)]).T)
 
         loss_record.append(np.float32(loss.data))
         loss.backward()
@@ -103,11 +104,12 @@ if __name__ == '__main__':
 
     else:
         pred = []
-        vec = net(np.array([mini_batch[0]]))
+        vec = net(mini_batch[0].reshape(-1,1))
         for correct in word:
             vec = F.argmax(vec)
             pred.append(vec.data) 
             vec = net.forward(np.array([np.int32(vec.data)]))
+
 
     plt.plot(loss_record)
     plt.show()
