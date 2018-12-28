@@ -103,9 +103,9 @@ if __name__ == '__main__':
         pred = []
         vec = net(mini_batch[0].reshape(-1,1))
         for i in range(10):
-            vec = F.argmax(vec)
+            vec = F.argmax(vec,axis=1)
             pred.append(vec.data) 
-            vec = net.forward(np.array([np.int32(vec.data)]))
+            vec = net.forward(np.array([np.int32(vec.data)]).T)
 
 
     plt.plot(loss_record)
