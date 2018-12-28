@@ -102,7 +102,7 @@ if __name__ == '__main__':
     else:
         pred = []
         vec = net(mini_batch[0].reshape(-1,1))
-        for correct in word:
+        for i in range(10):
             vec = F.argmax(vec)
             pred.append(vec.data) 
             vec = net.forward(np.array([np.int32(vec.data)]))
