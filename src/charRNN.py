@@ -62,11 +62,8 @@ if __name__ == '__main__':
     all_words = data.split()
     words_set = np.unique(all_words)[727:]
 
-    word_sample = []
-    for word in words_set:
-        if word.isalpha():
-           word_sample.append(word)
 
+    word_sample = [word for word in words_set if word.isalpha()]
     words_indices = [word_to_index(word) for word in word_sample]
 
 
