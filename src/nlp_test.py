@@ -6,16 +6,13 @@ Created on Mon Dec 10 15:27:55 2018
 """
 
 from collections import defaultdict
-import numpy as np
-from gensim.models.keyedvectors import KeyedVectors
-from gensim.scripts.glove2word2vec import glove2word2vec
-
-#glove2word2vec("trainer\glove.6B.200d.txt","trainer\glove.6B.200d.bin")
-word_vectors = KeyedVectors.load_word2vec_format(r"trainer/glove.6B.300d.bin")
-
-
 from matplotlib import pyplot as plt
 import networkx as nx
+import numpy as np
+from gensim.models.keyedvectors import KeyedVectors
+word_vectors = KeyedVectors.load_word2vec_format(r"trainer/glove.6B.100d.bin")
+
+
 
 def make_pairs(words, max_len =6):
     patterns = defaultdict(list)
@@ -43,6 +40,7 @@ def make_pairs(words, max_len =6):
                         
     return patterns
 
+
 def molph_classify(thepairs,model,threshold=0.5,min_category=5):
     new_pairs = defaultdict(list)
 
@@ -64,14 +62,13 @@ def molph_classify(thepairs,model,threshold=0.5,min_category=5):
              
     return new_pairs
 
+
 def make_same_group(pairs,word):
     pair_list = sum(list(pairs.values()),[])
-    group = []
-    for pair in pair_list:
-        if word == (pair[0] or pair[1]):
-            group.append(pair)
+    group = [pair for pair in pair_list if word==(pair[0] or pair[1])]
             
     return group
+
 
 def plot_graph(pair_group):
     G = nx.Graph()
@@ -99,8 +96,8 @@ if __name__ == '__main__':
         data = data.lower()
         
     all_words = data.split()
-    words_set = np.unique(all_words)[726:]
-    
+    words_set = np.unique(all_words)
+    words_set = [word for word in words_set if word.isalpha()]
 
     model = word_vectors.similarity
     original_pair = make_pairs(words_set, max_len =6)
@@ -108,5 +105,4 @@ if __name__ == '__main__':
     group = make_same_group(pairs,'work')
     plot_graph(group)
 
-    
-    
+
