@@ -1,9 +1,5 @@
-# -*- coding: utf-8 -*-
-"""
-Created on Mon Dec 10 15:27:55 2018
-
-@author: dy248
-"""
+__author__ = 'Daisuke Yoda'
+__Date__ = 'December 2018'
 
 from collections import defaultdict
 from matplotlib import pyplot as plt
@@ -101,7 +97,7 @@ if __name__ == '__main__':
 
     model = word_vectors.similarity
     original_pair = make_pairs(words_set, max_len =6)
-    pairs = molph_classify(original_pair,model)
+    pairs = molph_classify(original_pair,model,threshold=0.7,min_category=5)
     group = make_same_group(pairs,'work')
     plot_graph(group)
 
