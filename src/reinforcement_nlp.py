@@ -2,50 +2,52 @@ __author__ = 'Daisuke Yoda'
 __Date__ = 'December 2018'
 
 import numpy as np
+import pandas as pd
 from collections import Counter
 from collections import defaultdict
 import matplotlib.pyplot as plt
 from chainer import Chain, Variable, optimizers
 import chainer.functions as F
 import chainer.links as L
+from copy import deepcopy
 
 from gensim.models.keyedvectors import KeyedVectors
 word_vectors = KeyedVectors.load_word2vec_format("trainer/glove.6B.200d.bin")
 
 
 class LSTM(Chain):
-    def __init__(self, in_size, hidden_size, hidden2_size, out_size):
+    def __init__(self, in_size, hidden_size, out_size):
         super(LSTM, self).__init__(
-            xh=L.EmbedID(in_size, hidden_size),
-            hh=L.LSTM(hidden_size, hidden2_size),
-            hy=L.Linear(hidden2_size, out_size),
-        )
+            xh=L.Linear(in_size, hidden_size),
+            hh=L.GRU(hidden_size, hidden_size),
+            hy = L.Linear(hidden_size,out_size))
 
     def __call__(self, x, t):
+        x = one_hot_encoding(x).astype(np.float32)
         x = Variable(x)
         t = Variable(t)
-
         h = self.xh(x)
-        h = self.hh(h)
-        hy = self.hy(h)
-        y = F.relu(hy)
+        h = F.dropout(h,0.3)
+        h = F.tanh(h)
+        h2 = self.hh(h)
+        h = F.dropout(h2, 0.3)
+        y = self.hy(h2)
 
-        return F.softmax_cross_entropy(y, t)
+        return F.softmax_cross_entropy(y, t,reduce='no')
 
     def predict(self, x):
+        x = one_hot_encoding(x).astype (np.float32)
         x = Variable(x)
-
         h = self.xh(x)
-        h = self.hh(h)
-        hy = self.hy(h)
-        y = F.relu(hy)
+        h = F.tanh(h)
+        h2 = self.hh(h)
+        y = self.hy(h2)
 
         y = F.softmax(y)
 
         return y.data
 
     def reset(self):
-        #self.cleargrads()
         self.hh.reset_state()
 
 
@@ -108,9 +110,11 @@ def padding(sentences):
     for sentence in sentences:
         pad_len = max_len - len(sentence)
         pad_vec = [26] * pad_len
-        paded_vec.append(np.r_[sentence,pad_vec])
+        sentence.extend(pad_vec)
+        paded_vec.append(sentence)
 
     return np.array(paded_vec,dtype=np.int32)
+
 
 
 def make_same_group(pairs, word):
@@ -118,6 +122,7 @@ def make_same_group(pairs, word):
     group = [pair[0:2] for pair in pair_list if word == (pair[0] or pair[1])]
 
     return group
+
 
 def get_hit_rate(pairs,words):
     hit_word = []
@@ -129,6 +134,84 @@ def get_hit_rate(pairs,words):
     c = Counter(hit_word)
     return zip(*c.most_common(80))
 
+
+def clustering_group(pairs,words):
+    pair_list = [pair[0:2] for pair in sum(list(pairs.values()),[])]
+    cluster_list = []
+    for word in words:
+        cluster = [word]
+        for pair in pair_list[:]:
+            if word == pair[0]:
+                cluster.append(pair[1])
+                pair_list.remove(pair)
+            elif word == pair[1]:
+                cluster.append(pair[0])
+                pair_list.remove(pair)
+        
+        if len(cluster) > 1:
+            cluster_list.append(cluster)
+        
+        
+    return np.array([np.unique(pair) for pair in np.unique(cluster_list)])
+
+
+def one_hot_encoding(indices,n_class=27):
+    return np.eye(n_class)[indices]
+
+
+def word_to_index(word):
+    word_index = [ord (char) - 97 for char in word]
+
+    return word_index
+
+
+def occurance_probability(word_set,pd_frame=True):
+    training_data = [word_to_index(x) for x in word_set]
+
+    model = LSTM(27,100,27)
+    optimizer = optimizers.Adam()
+    optimizer.setup(model)
+    
+    model.cleargrads()
+    for i in range(150):
+        model.reset()
+        training_sample = deepcopy(np.random.permutation(training_data))
+        training_sample = padding(training_sample).T
+        loss = 0
+        trainX = training_sample[:-1]
+        trainY = training_sample[1:]
+        for X,Y in zip(trainX,trainY):
+            loss += F.sum(model(X,Y))
+
+        loss.backward()
+        optimizer.update()
+        
+    occurance_probability = {}
+    for word in word_set:    
+        model.reset()
+        word_ix = word_to_index(word)
+        char_X = word_ix[:-1]
+        char_Y = word_ix[1:]
+        cr_prob = []
+        for char_x,char_y in zip(char_X,char_Y):
+            y = model.predict(np.array([char_x]))
+            prob = y[0][char_y]
+            cr_prob.append(prob)
+            
+        cr_prob = np.cumsum(cr_prob)/np.arange(1,len(word))
+        
+        if pd_frame:
+            occurance_probability[word] = pd.Series(cr_prob)
+        else:
+            occurance_probability[word] = cr_prob
+            
+            
+    if pd_frame:
+        return pd.DataFrame(occurance_probability)
+    else:
+        return occurance_probability
+    
+    
 
 
 if __name__ == '__main__':
@@ -148,71 +231,19 @@ if __name__ == '__main__':
     original_pair = make_pairs(words_set, max_len=6)
     pairs = molph_classify(original_pair,model,threshold=0.7,min_category=5)
     word_dic = np.unique(np.ravel([pair[0:2] for pair in sum(list(pairs.values()),[])]))
+    
+    """
     common_words,counts = get_hit_rate(pairs,word_dic)
-
-
-    train_set = [np.unique(np.ravel(make_same_group(pairs,word))) for word in common_words]
-
-
+    train_set = [set(np.ravel(make_same_group(pairs,word))) for word in common_words]
     dic_ix = np.array([word2indices(word) for word in word_dic])
+    """
+    
+    morph_cluster = clustering_group(pairs,word_dic)
+    morph_cluster = [pair for pair in morph_cluster if len(pair)>3]
+    
 
-    batch_size = 50
-    model = LSTM(27,50,20,27)
-    optimizer = optimizers.Adam()
-    optimizer.setup(model)
-
-    loss_record = []
-    for i in range(500):
-        model.cleargrads()
-        sample = np.random.permutation(dic_ix)[:batch_size]
-        sample = padding(sample).T
-        trainX = sample[:-1]
-        trainY = sample[1:]
-
-        loss = 0
-        for X,Y in zip(trainX,trainY):
-            loss += model(X,Y)
-
-        loss.backward()
-        loss_record.append(int(loss.data))
-        optimizer.update()
+    prob = pd.concat([occurance_probability(pair) for pair in morph_cluster],axis=1)
+    prob.to_csv('occurance_probability.csv')
 
 
-    plt.plot(loss_record)
-    plt.show()
-
-    char = np.array([trainX.T[21][0]])
-    word = np.apply_along_axis(chr,0, np.array([trainX.T[21] + 97]))
-    print(word)
-
-    model.reset()
-    while True:
-        y = model.predict(char)
-
-        pred = np.apply_along_axis(chr,0, np.argsort(y) + 97)[::-1]
-        pred = np.where(pred=='{','end',pred)
-        prob = np.sort(y)[0][::-1]
-        prob = np.round(prob,5)
-        cadidate = {char:p for char,p in zip(pred[:3],prob[:3])}
-        print(cadidate)
-
-        char = np.array([np.argmax(y)], dtype=np.int32)
-
-        if char[0] == 26:
-            break
-
-    word = word2indices('created').reshape(-1, 1)
-    model.reset()
-    for char in word:
-        y = model.predict(char)
-
-        pred = np.apply_along_axis(chr,0, np.argsort(y) + 97)[::-1]
-        pred = np.where(pred=='{','end',pred)
-        prob = np.sort(y)[0][::-1]
-        prob = np.round(prob,5)
-        cadidate = {char:p for char,p in zip(pred[:3],prob[:3])}
-        print(cadidate)
-
-
-
-
+    
