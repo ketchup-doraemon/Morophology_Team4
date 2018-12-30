@@ -1,9 +1,8 @@
-# Morophology_Team4
+# Morophology_Team4 
 
-### Deadline : January 12
-
-### As the volume of dataset is too large to be uploaded, please put the dataset in src/trainer.
-### If you don't have bin file, you can convert txt file to bin file using the following python code.
+## NOTICE
+#### As the volume of dataset is too large to be uploaded, please put the dataset in src/trainer.
+#### If you don't have bin file, you can convert txt file to bin file using the following python code.
 
 ```
 from gensim.scripts.glove2word2vec import glove2word2vec
