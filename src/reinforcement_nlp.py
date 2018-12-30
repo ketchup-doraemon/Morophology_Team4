@@ -165,7 +165,7 @@ def word_to_index(word):
     return word_index
 
 
-def occurance_probability(word_set,pd_frame=True):
+def occurrence_probability(word_set,pd_frame=True):
     training_data = [word_to_index(x) for x in word_set]
 
     model = LSTM(27,100,27)
@@ -173,7 +173,7 @@ def occurance_probability(word_set,pd_frame=True):
     optimizer.setup(model)
     
     model.cleargrads()
-    for i in range(150):
+    for i in range(200):
         model.reset()
         training_sample = deepcopy(np.random.permutation(training_data))
         training_sample = padding(training_sample).T
@@ -186,10 +186,11 @@ def occurance_probability(word_set,pd_frame=True):
         loss.backward()
         optimizer.update()
         
-    occurance_probability = {}
+    occurrence_probability = {}
     for word in word_set:    
         model.reset()
         word_ix = word_to_index(word)
+        word_ix.extend([26])
         char_X = word_ix[:-1]
         char_Y = word_ix[1:]
         cr_prob = []
@@ -198,18 +199,18 @@ def occurance_probability(word_set,pd_frame=True):
             prob = y[0][char_y]
             cr_prob.append(prob)
             
-        cr_prob = np.cumsum(cr_prob)/np.arange(1,len(word))
+        cr_prob = np.cumsum(cr_prob)/np.arange(1,len(word)+1)
         
         if pd_frame:
-            occurance_probability[word] = pd.Series(cr_prob)
+            occurrence_probability[word] = pd.Series(cr_prob)
         else:
-            occurance_probability[word] = cr_prob
+            occurrence_probability[word] = cr_prob
             
             
     if pd_frame:
-        return pd.DataFrame(occurance_probability)
+        return pd.DataFrame(occurrence_probability)
     else:
-        return occurance_probability
+        return occurrence_probability
     
     
 
@@ -239,11 +240,11 @@ if __name__ == '__main__':
     """
     
     morph_cluster = clustering_group(pairs,word_dic)
-    morph_cluster = [pair for pair in morph_cluster if len(pair)>3]
+    morph_cluster = [pair for pair in morph_cluster if len(pair)>2]
     
 
-    prob = pd.concat([occurance_probability(pair) for pair in morph_cluster],axis=1)
-    prob.to_csv('occurance_probability.csv')
+    prob = pd.concat([occurrence_probability(pair) for pair in morph_cluster],axis=1)
+    prob.to_csv('trainer/occurrence_probability.csv')
 
 
     
