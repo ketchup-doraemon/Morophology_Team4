@@ -1,5 +1,3 @@
-# Morophology_Team4 
-
 ## NOTICE
 #### As the volume of dataset is too large to be uploaded, please put the dataset in src/trainer.
 #### If you don't have bin file, you can convert txt file to bin file using the following python code.
