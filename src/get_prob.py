@@ -134,26 +134,63 @@ def get_hit_rate(pairs,words):
     c = Counter(hit_word)
     return zip(*c.most_common(80))
 
-
-def clustering_group(pairs,words):
-    pair_list = [pair[0:2] for pair in sum(list(pairs.values()),[])]
+def clustering_group(pairs):
+    pair_list1 = [set(pair[0:2]) for pair in sum(list(pairs.values()),[])]
+    pair_list2 = deepcopy(pair_list1)
     cluster_list = []
-    for word in words:
+    for pair1 in pair_list1[:]:
+        ald = False
+        for cluster in cluster_list:
+            if pair1 <= cluster:
+                ald = True
+        if ald:
+            continue
+            
+        while True:       
+            calc = False
+            for pair2 in pair_list2[:]:
+                if pair1 >= pair2:
+                    pass
+                elif not pair1.isdisjoint(pair2):
+                    pair1 = pair1 | pair2
+                    calc = True
+            if not calc:
+                cluster_list.append(pair1)
+                break
+        
+    return cluster_list
+        
+                     
+"""                    
+def clustering_group_n(pairs,words):
+    pair_list = [pair[0:2] for pair in sum(list(pairs.values()),[])]
+    words_list = list(words)
+    cluster_list = []
+    for word in words_list[:]:
+        if word == 'appeared':
+            print(word)
         cluster = [word]
-        for pair in pair_list[:]:
-            if word == pair[0]:
-                cluster.append(pair[1])
-                pair_list.remove(pair)
-            elif word == pair[1]:
-                cluster.append(pair[0])
-                pair_list.remove(pair)
+        for i in range(len(pair_list)):
+            if word == pair_list[i][0]:
+                cluster.append(pair_list[i][1])
+                pair_list.remove(pair_list[i])
+                if pair_list[i][1] in words_list:
+                    words_list.remove(pair_list[i][1])
+
+                    
+            elif word == pair_list[i][1]:
+                cluster.append(pair_list[i][0])
+                pair_list.remove(pair_list[i])
+                if pair_list[i][0] in words_list:
+                    words_list.remove(pair_list[i][0])
+                    
         
         if len(cluster) > 1:
             cluster_list.append(cluster)
         
         
     return np.array([np.unique(pair) for pair in np.unique(cluster_list)])
-
+"""
 
 def one_hot_encoding(indices,n_class=27):
     return np.eye(n_class)[indices]
@@ -172,8 +209,8 @@ def occurrence_probability(word_set,pd_frame=True):
     optimizer = optimizers.Adam()
     optimizer.setup(model)
     
-    model.cleargrads()
     for i in range(200):
+        model.cleargrads()
         model.reset()
         training_sample = deepcopy(np.random.permutation(training_data))
         training_sample = padding(training_sample).T
@@ -231,15 +268,14 @@ if __name__ == '__main__':
     model = word_vectors.similarity
     original_pair = make_pairs(words_set, max_len=6)
     pairs = molph_classify(original_pair,model,threshold=0.7,min_category=5)
-    word_dic = np.unique(np.ravel([pair[0:2] for pair in sum(list(pairs.values()),[])]))
-    
     """
+    word_dic = np.unique(np.ravel([pair[0:2] for pair in sum(list(pairs.values()),[])]))
     common_words,counts = get_hit_rate(pairs,word_dic)
     train_set = [set(np.ravel(make_same_group(pairs,word))) for word in common_words]
     dic_ix = np.array([word2indices(word) for word in word_dic])
     """
     
-    morph_cluster = clustering_group(pairs,word_dic)
+    morph_cluster = clustering_group(pairs)
     morph_cluster = [pair for pair in morph_cluster if len(pair)>2]
     
 
