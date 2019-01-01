@@ -61,24 +61,37 @@ def padding(sentences):
    
     
 class LSTM(Chain):
-    def __init__(self, in_size, hidden_size,hidden2_size,out_size):
+    def __init__(self, in_size, hidden_size,hidden2_size,hidden3_size,out_size):
         super(LSTM, self).__init__(
             xh=L.Linear(in_size, hidden_size),
             hh=L.LSTM(hidden_size, hidden2_size),
-            hh2=L.LSTM(hidden2_size, hidden2_size),
-            hy=L.Linear(hidden2_size,out_size))
+            hh2=L.LSTM(hidden2_size, hidden3_size),
+            hy=L.Linear(hidden3_size,out_size))
 
-    def forward(self, x):
+    def forward(self,x):
         x = Variable(x)
+        x = F.dropout(x,0.3)
         h = self.xh(x)
-        h = F.dropout(h,0.3)
-        h = F.relu(h)
+        h = F.tanh(h)
         h2 = self.hh(h)
-        h = F.dropout(h2, 0.3)
+        h2 = F.dropout(h2, 0.3)
         h2 = self.hh2(h2)
+        h2 = F.dropout(h2, 0.3)        
         y = self.hy(h2)
 
         return y
+    
+    def predict(self,word):
+        self.reset()
+        for char in word:
+            x = Variable(char)
+            h = self.xh(x)
+            h = F.tanh(h)
+            h2 = self.hh(h)  
+            h2 = self.hh2(h2)    
+            res = self.hy(h2)   
+
+        return F.argmax(res)
     
     def __call__(self,word,ans):
         self.reset()
@@ -89,7 +102,7 @@ class LSTM(Chain):
 
     def reset(self):
         self.hh.reset_state()
-        self.hh2.reset_state()
+        #self.hh2.reset_state()
         
         
 if __name__ == '__main__':
@@ -98,12 +111,12 @@ if __name__ == '__main__':
     training_data = [word_to_index(x) for x in df.columns]
     training_data = padding(training_data).T
     training_data = [one_hot_encoding(x).astype(np.float32) for x in training_data]
-    model = LSTM(27,50,20,27)
+    model = LSTM(27,30,50,30,27)
     optimizer = optimizers.Adam()
     optimizer.setup(model)
     
     loss_record = []
-    for i in range(1500):
+    for i in range(1000):
         model.cleargrads()
         #training_sample = np.random.permutation(training_data)
         loss = model(training_data,answer)
@@ -113,6 +126,12 @@ if __name__ == '__main__':
         optimizer.update()
     
     plt.plot(loss_record)
-
-
+    
+    
+word = 'worked'
+word_vec = np.array(word_to_index(word))
+word_vec = one_hot_encoding(word_vec).astype(np.float32)
+word_vec = word_vec.reshape(len(word),1,-1)
+pred = model.predict(word_vec)
+print(pred)
 #np.vstack([padding(training_data).T,answer])
