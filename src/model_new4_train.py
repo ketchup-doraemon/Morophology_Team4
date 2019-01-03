@@ -4,6 +4,7 @@ __Date__ = 'December 2018'
 
 import pandas as pd
 import numpy as np
+from matplotlib import pyplot as plt
 
 from chainer import Chain, Variable, optimizers, serializers
 import chainer.functions as F
@@ -16,9 +17,7 @@ def word_to_index(word):
 
 
 def one_hot_encoding(indices, n_class=27):
-    emb_zero = (indices != 26).astype (int)
-
-    return emb_zero.reshape (-1, 1) * np.eye (n_class)[indices]
+    return np.eye(n_class)[indices]
 
 def padding(sentences):
     max_len = np.max([len(s) for s in sentences])
@@ -29,57 +28,69 @@ def padding(sentences):
         sentence.extend(pad_vec)
         paded_vec.append(sentence)
 
-    return np.array (paded_vec, dtype=np.int32)
+    return np.array(paded_vec, dtype=np.int32)
 
 
 class LSTM(Chain):
-    def __init__(self, in_size, hidden_size,hidden2_size,hidden3_size,out_size):
+    def __init__(self, in_size, hidden_size,out_size):
         super(LSTM, self).__init__(
-            xh=L.Linear(in_size, hidden_size),
-            hh=L.LSTM(hidden_size, hidden2_size),
-            hh2=L.LSTM(hidden2_size, hidden3_size),
-            hy=L.Linear(hidden3_size,out_size))
+            h1 = L.NStepLSTM (
+                n_layers=2,
+                in_size=in_size,
+                out_size=hidden_size,
+                dropout=0.3),
+            hy = L.Linear(hidden_size,out_size))
+        self.hx = None
+        self.cx = None
 
-    def forward(self,x):
-        x = Variable(x)
-        x = F.dropout(x,0.3)
-        h = self.xh(x)
-        h = F.tanh(h)
-        h2 = self.hh(h)
-        h2 = F.dropout(h2, 0.3)
-        h2 = self.hh2(h2)
-        h2 = F.dropout(h2, 0.3)
-        y = self.hy(h2)
 
-        return y
+    def __call__(self,input_data):
+        input_x = [Variable(x) for x in input_data]
+        hx,cx,y = self.h1(None,None,input_x)
+        y2 = [self.hy(item) for item in y]
 
-    def reset(self):
-        self.hh.reset_state()
+        return y2
+
+    def predict(self,word):
+        test_vec = word_to_index(word)
+        test_vec = one_hot_encoding(test_vec).astype(np.float32)
+        res = model([test_vec])[0]
+        pred = F.argmax(res, axis=1)
+        print(pred)
+
 
 
 if __name__ == '__main__':
     df = pd.read_csv('trainer/split_point.csv',index_col=0)
     training_data = [word_to_index(x) for x in df.columns]
-    training_data = padding(training_data).T
-    training_data = [one_hot_encoding (x).astype(np.float32) for x in training_data]
+    training_data = [one_hot_encoding(x).astype(np.float32) for x in training_data]
 
-    split_point = np.nan_to_num(df.values,0).astype(np.int32)
-
-    model = LSTM(27,30,50,30,27)
+    split_point = [df[col].dropna().values for col in df.columns]
+    model = LSTM(27,50,2)
     optimizer = optimizers.Adam()
     optimizer.setup(model)
 
-    for i in range(1000):
-        model.cleargrads()
-        model.reset()
-        for X,Y in zip(training_data,split_point):
-            pred = model(X)
-            loss = F.softmax_cross_entropy(pred,Y)
 
+    loss_record = []
+    for i in range(500):
+        loss = 0
+        model.cleargrads()
+        res = model(training_data)
+        for r,ans in zip(res,split_point):
+            loss += F.softmax_cross_entropy(r,ans.astype(np.int32))
         loss.backward()
+        loss_record.append(float(loss.data))
         optimizer.update()
 
 
-    serializers.save_npz("model_new4.npz", model)
+    plt.plot(loss_record)
+    plt.xlabel('Epoch')
+    plt.ylabel('Loss')
+    plt.show()
+
+    pred = model.predict('age')
+    print(pred)
+
+
 
 
