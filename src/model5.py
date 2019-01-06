@@ -43,6 +43,7 @@ class LSTM(Chain):
 
 
     def __call__(self,input_data,hx=None):
+        hx = hx.reshape(1,-1,self.h1.out_size)
         input_x = [Variable(x) for x in input_data]
         hx,cx,y = self.h1(hx,None,input_x)
         y2 = [F.concat(x, axis=0) for x in F.pad_sequence(y,length=17, padding=0.)]
@@ -52,17 +53,17 @@ class LSTM(Chain):
 
         return out
 
-    def predict(self,word):
+    def predict(self,word,hx=None):
         test_vec = word_to_index(word)
         test_vec = one_hot_encoding(test_vec).astype(np.float32)
-        res = model([test_vec])[0]
-        return F.argmax(res, axis=1)
+        res = self([test_vec],hx=None)[0]
+        return F.argmax(res)
 
 
 
 if __name__ == '__main__':
     from gensim.models.keyedvectors import KeyedVectors
-    word_vectors = KeyedVectors.load_word2vec_format("trainer/glove.6B.100d.bin")
+    word_vectors = KeyedVectors.load_word2vec_format("trainer/glove.6B.200d.bin")
 
     df = pd.read_csv('trainer/split_point_2.csv',index_col=0)
     df = df[np.random.permutation(df.columns)]
@@ -74,7 +75,7 @@ if __name__ == '__main__':
     
     
     split_point = np.nan_to_num(df,0).T
-    model = LSTM(27,100,17)
+    model = LSTM(27,200,17)
     optimizer = optimizers.Adam()
     optimizer.setup(model)
 
@@ -90,14 +91,16 @@ if __name__ == '__main__':
     #testX.append(original_data[max_point])
     #testY = np.vstack([testY,split_point[max_point]]).astype(np.float32)
 
-    model.train = True
+
 
     train_loss_record = []
     test_loss_record = []
-    for i in range(120):
+    
+    model.train = True   
+    for i in range(200):
         loss = 0
         model.cleargrads()
-        res = model(trainX,word_vec[:1500].reshape(1,-1,100))
+        res = model(trainX,word_vec[:1500])
         loss = F.mean_squared_error(res,trainY)
         #loss = F.softmax_cross_entropy(res,F.argmax(split_point[:500],axis=1))
         loss.backward()
@@ -106,7 +109,7 @@ if __name__ == '__main__':
 
 
         loss = 0
-        res = model(testX,word_vec[1500:].reshape(1,-1,100))
+        res = model(testX,word_vec[1500:])
         loss = F.mean_squared_error(res,testY)
         #loss = F.softmax_cross_entropy(res, F.argmax(split_point[500:], axis=1))
         test_loss_record.append(float(loss.data))
@@ -122,10 +125,13 @@ if __name__ == '__main__':
     #plt.savefig('model_new4.png')
     plt.show()
 
-    train_accuracy = 100*np.sum(np.argmax(model(trainX,word_vec[:1500].reshape(1,-1,100)).data, axis=1)==np.argmax(trainY,axis=1))/len(trainX)
-    test_accuracy = 100*np.sum(np.argmax(model(testX,word_vec[1500:].reshape(1,-1,100)).data, axis=1)==np.argmax(testY,axis=1))/len(testX)
+    train_accuracy = 100*np.sum(np.argmax(model(trainX,word_vec[:1500]).data, axis=1)==np.argmax(trainY,axis=1))/len(trainX)
+    test_accuracy = 100*np.sum(np.argmax(model(testX,word_vec[1500:]).data, axis=1)==np.argmax(testY,axis=1))/len(testX)
 
     print('train_accuracy:',train_accuracy)
     print('test_accuracy:',test_accuracy)
+    
+    serializers.save_npz('model5.npz',model)
+    
 
 
