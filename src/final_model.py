@@ -45,7 +45,8 @@ class LSTM(Chain):
 
 
     def __call__(self,input_data,hx=None):
-        hx = hx.reshape(1,-1,self.h1.out_size)
+        if np.any(hx):
+            hx = hx.reshape(1,-1,self.h1.out_size)
         input_x = [Variable(x) for x in input_data]
         hx,cx,y = self.h1(hx,None,input_x)
         y2 = [F.concat(x, axis=0) for x in F.pad_sequence(y,length=17, padding=0.)]
@@ -58,7 +59,7 @@ class LSTM(Chain):
     def predict(self,word,hx=None):
         test_vec = word_to_index(word)
         test_vec = one_hot_encoding(test_vec).astype(np.float32)
-        res = self([test_vec],hx=None)[0]
+        res = self([test_vec],hx)[0]
         return F.argmax(res)
 
 
@@ -66,15 +67,15 @@ class LSTM(Chain):
 if __name__ == '__main__':
     word_vectors = KeyedVectors.load_word2vec_format("trainer/glove.6B.200d.bin")
 
-    df = pd.read_csv ('trainer/split_point_2.csv', index_col=0)
+    df = pd.read_csv('trainer/split_point_2.csv', index_col=0)
     df = df[np.random.permutation (df.columns)]
 
-    word_vec = np.array ([word_vectors.get_vector (word) for word in df.columns], dtype=np.float32)
+    word_vec = np.array([word_vectors.get_vector(word) for word in df.columns], dtype=np.float32)
 
-    original_data = [word_to_index (x) for x in df.columns]
-    original_data = [one_hot_encoding (x).astype (np.float32) for x in original_data]
+    original_data = [word_to_index(x) for x in df.columns]
+    original_data = [one_hot_encoding(x).astype (np.float32) for x in original_data]
 
-    split_point = np.nan_to_num (df, 0).T
+    split_point = np.nan_to_num(df, 0).T
 
     trainX = original_data[:1500]
     testX = original_data[1500:]
