@@ -8,9 +8,9 @@ from gensim.scripts.glove2word2vec import glove2word2vec
 glove2word2vec("trainer\glove.6B.100d.txt","trainer\glove.6B.100d.bin")
 ```
 
-Also, the following modules are expected to be installed.
-chainer 5.1.0   
-gensim  3.6.0  
+Also, the following modules are expected to be installed.  
+chainer 5.1.0     
+gensim  3.6.0    
 
 ## Model 1
 model1.ipynb : Word Embedding Space Model.  
